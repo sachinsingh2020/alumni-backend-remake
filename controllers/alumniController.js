@@ -7,66 +7,70 @@ import cloudinary from "cloudinary";
 import { JobPortal } from "../models/jobPortalModel.js";
 import getDataUri from "../utils/dataUri.js";
 import { sendToken } from "../utils/sendToken.js";
+import { sendEmail } from "../utils/sendEmail.js";
 
 
 export const alumniRegister = catchAsyncError(async (req, res, next) => {
-
     const { firstName, lastName, email, password, dateOfBirth = "unknown", role = "alumni", graduationYear = "unknown", fieldOfStudy = "unknown", profession = "unknown", industry = "unknown", jobLocation = "unknown", linkedin = "unknown", github = "unknown", twitter = "unknown", instagram = "unknown", portfolio = "unknown" } = req.body;
-
-    // console.log({ firstName, lastName, email, password, dateOfBirth, role, graduationYear, fieldOfStudy, profession, industry, jobLocation, linkedin, github, twitter, instagram, portfolio });
-
 
     const alreadyExist = await Alumni.findOne({ email: email });
 
-    // console.log({ alreadyExist });
-
     if (alreadyExist) {
-        console.log("you are already registered as an alumni");
         return next(new ErrorHandler("You are already registered as an Alumni", 400));
     }
 
-
     const file = req.file;
-    // console.log({ file });
-
-
     if (!file) {
         return next(new ErrorHandler('Please upload an image file', 400));
     }
 
     const fileUri = getDataUri(file);
-    // console.log({ fileUri });
-
     const mycloud = await cloudinary.v2.uploader.upload(fileUri.content);
 
     const newUser = await Alumni.create({
-        firstName: firstName,
-        lastName: lastName,
-        email: email,
-        role: role,
+        firstName,
+        lastName,
+        email,
+        role,
         graduationYear,
         fieldOfStudy,
         profession,
         industry,
         jobLocation,
         password,
-        socialMedia: {
-            linkedin,
-            github,
-            twitter,
-            instagram,
-            portfolio,
-        },
-        profilePic: {
-            public_id: mycloud.public_id,
-            url: mycloud.secure_url,
-        },
+        socialMedia: { linkedin, github, twitter, instagram, portfolio },
+        profilePic: { public_id: mycloud.public_id, url: mycloud.secure_url },
         dateOfBirth,
     });
 
-    sendToken(res, newUser, `Alumni Registered Successfully`, 201);
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="text-align: center;">
+          <img src="https://nosplan.in/wp-content/uploads/2022/06/87202-746-7461236_gautam-buddha-university-logo-png-transparent-png.png" alt="Institution Logo" style="max-width: 200px; margin-bottom: 20px;" />
+        </div>
+        <h1 style="text-align: center; color: #4CAF50;">Welcome to the Alumni Network!</h1>
+        <p>Dear <strong>${newUser.firstName} ${newUser.lastName}</strong>,</p>
+        <p>We are thrilled to have you join our alumni community. As a valued member, you can connect, collaborate, and grow with fellow alumni. Stay updated on events, opportunities, and news from our network.</p>
+        <p><strong>Your Profile Highlights:</strong></p>
+        <ul>
+          <li><strong>Graduation Year:</strong> ${graduationYear}</li>
+          <li><strong>Field of Study:</strong> ${fieldOfStudy}</li>
+          <li><strong>Current Profession:</strong> ${profession}</li>
+        </ul>
+        <p>You can now <a href="https://alumni-network-login-url.com" style="color: #4CAF50; text-decoration: none;">login</a> to your account and start connecting with other alumni.</p>
+        <p style="text-align: center;">Best Regards,<br /><strong>Your Alumni Team</strong></p>
+        <footer style="margin-top: 20px; text-align: center; font-size: 0.8em; color: #555;">
+          <p>Contact us: support@institution.com | +123-456-7890</p>
+          <p>&copy; 2024 Institution Name. All rights reserved.</p>
+        </footer>
+      </div>
+    `;
 
+    await sendEmail(newUser.email, "Welcome to Alumni Network", null, htmlContent);
+
+    sendToken(res, newUser, `Alumni Registered Successfully`, 201);
 });
+
 
 export const alumniLogin = catchAsyncError(async (req, res, next) => {
     const { email, password } = req.body;

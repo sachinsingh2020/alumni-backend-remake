@@ -1,6 +1,6 @@
 import { createTransport } from "nodemailer";
 
-export const sendEmail = async (to, subject, text) => {
+export const sendEmail = async (to, subject, text, html) => {
   const transporter = createTransport({
     service: process.env.SMTP_SERVICE,
     auth: {
@@ -9,14 +9,13 @@ export const sendEmail = async (to, subject, text) => {
     },
     port: 465,
     host: 'smtp.gmail.com',
-  })
-
-  // console.log({ transporter });
+  });
 
   await transporter.sendMail({
     from: process.env.SMTP_MAIL,
     to,
     subject,
     text,
+    html, // Include HTML content here
   });
-}
+};
